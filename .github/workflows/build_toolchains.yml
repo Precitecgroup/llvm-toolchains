@@ -1,0 +1,107 @@
+name: Build LLVM Toolchains
+
+on:
+  workflow_dispatch:
+    inputs:
+      llvm_version:
+        description: 'LLVM version to build (e.g. 21.1.1)'
+        required: true
+        default: '21.1.1'
+      force_rebuild:
+        description: 'Force a complete rebuild of Clang'
+        type: boolean
+        required: false
+        default: false
+      aos_ref:
+        description: 'Branch, tag, or commit ref of RealtimeRoboticsGroup/aos to retrieve the script'
+        required: true
+        default: 'main'
+
+env:
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CMAKE_C_COMPILER_LAUNCHER: ccache
+  CMAKE_CXX_COMPILER_LAUNCHER: ccache
+
+jobs:
+  build:
+    name: Build LLVM (${{ matrix.os }} - ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            runner: ubuntu-22.04
+          - os: linux
+            arch: arm64
+            runner: ubuntu-24.04-arm64
+          - os: macos
+            arch: arm64
+            runner: macos-14
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Checkout AOS repository
+        uses: actions/checkout@v4
+        with:
+          repository: RealtimeRoboticsGroup/aos
+          ref: ${{ github.event.inputs.aos_ref }}
+          path: aos_repo
+
+      - name: Install dependencies (Linux)
+        if: matrix.os == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build clang lld zstd ccache
+
+      - name: Install dependencies (macOS)
+        if: matrix.os == 'macos'
+        run: |
+          brew install cmake ninja zstd ccache
+
+      - name: Setup ccache
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-${{ matrix.os }}-${{ matrix.arch }}-${{ github.event.inputs.llvm_version }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-${{ matrix.os }}-${{ matrix.arch }}-${{ github.event.inputs.llvm_version }}-
+            ccache-${{ matrix.os }}-${{ matrix.arch }}-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=2G
+          ccache -z
+
+      - name: Run Build Script
+        run: |
+          python3 aos_repo/tools/helpers/build_from_llvm.py \
+            --llvm-version ${{ github.event.inputs.llvm_version }} \
+            --clang \
+            --libcxx msan \
+            --tempdir /tmp/llvm-build \
+            --force-redownload \
+            ${{ github.event.inputs.force_rebuild == 'true' && '--clang-force-rebuild' || '' }}
+
+      - name: Show ccache stats
+        run: |
+          ccache -s
+
+      - name: Publish to GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event.inputs.llvm_version }}"
+          
+          # Create the release if it doesn't exist, ignore if duplicate/exists
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes "Automated LLVM and MSan toolchain builds." 2>/dev/null || true
+
+          # Upload all generated .tar.zst packages directly
+          gh release upload "$TAG" /tmp/llvm-build/*.tar.zst --clobber
