@@ -33,7 +33,7 @@ During execution, the workflow will automatically create a GitHub Release tagged
 ### Runner Requirements
 To ensure builds complete successfully in a reasonable timeframe:
 - **Linux amd64**: Runs on standard GitHub-hosted `ubuntu-22.04` runner.
-- **Linux arm64**: Runs on native GitHub-hosted `ubuntu-24.04-arm64` runner (or equivalent self-hosted).
+- **Linux arm64**: Runs on native GitHub-hosted `ubuntu-24.04-arm` runner (or equivalent self-hosted).
 - **macOS arm64**: Runs on standard GitHub-hosted `macos-14` (Apple Silicon M1) runner.
 
 ---
