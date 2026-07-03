@@ -53,20 +53,6 @@ jobs:
           ref: ${{ github.event.inputs.aos_ref }}
           path: aos_repo
 
-      - name: Patch AOS build script (enable ZLIB/ZSTD)
-        run: |
-          python3 -c "
-          p = 'aos_repo/tools/helpers/build_from_llvm.py'
-          content = open(p).read()
-          old = '\"-DLLVM_ENABLE_TERMINFO=OFF\",'
-          new = old + '\n            \"-DLLVM_ENABLE_ZLIB=FORCE_ON\",\n            \"-DLLVM_ENABLE_ZSTD=FORCE_ON\",'
-          if old in content:
-              open(p, 'w').write(content.replace(old, new))
-              print('Successfully patched build_from_llvm.py')
-          else:
-              print('Warning: Target string not found, patch skipped')
-          "
-
       - name: Install dependencies (Linux)
         if: matrix.os == 'linux'
         run: |
