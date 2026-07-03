@@ -44,10 +44,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Checkout AOS repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: RealtimeRoboticsGroup/aos
           ref: ${{ github.event.inputs.aos_ref }}
@@ -79,7 +79,7 @@ jobs:
           brew install cmake ninja zstd ccache
 
       - name: Setup ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .ccache
           key: ccache-${{ matrix.os }}-${{ matrix.arch }}-${{ github.event.inputs.llvm_version }}-${{ github.run_id }}
